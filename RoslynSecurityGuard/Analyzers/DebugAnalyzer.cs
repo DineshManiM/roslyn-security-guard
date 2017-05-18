@@ -10,7 +10,7 @@ using RoslynSecurityGuard.Analyzers.Locale;
 
 namespace RoslynSecurityGuard.Analyzers
 {
-    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    [DiagnosticAnalyzer(LanguageNames.CSharp, LanguageNames.VisualBasic)]
     public class DebugAnalyzer : DiagnosticAnalyzer
     {
         //Dummy descriptor, it will never be reported
@@ -20,6 +20,7 @@ namespace RoslynSecurityGuard.Analyzers
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(VisitMethods, SyntaxKind.MethodDeclaration);
+            context.RegisterSyntaxNodeAction(VisitMethodsEx, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.SubBlock, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.FunctionBlock);
         }
 
         private static void VisitMethods(SyntaxNodeAnalysisContext ctx)
@@ -41,7 +42,7 @@ namespace RoslynSecurityGuard.Analyzers
 
             string code = node.GetText().Lines[0].Text.ToString().Trim() + (node.GetText().Lines.Count > 1 ? "[...]" : "");
 
-            if (node.ChildNodes().Any())
+            if (node.ChildNodes().Count() > 0)
             {
                 code = "";
             }
@@ -64,6 +65,54 @@ namespace RoslynSecurityGuard.Analyzers
 
             foreach (var n in node.ChildNodes()) {
                 visitNodeRecursively(n, indent+1, ctx);
+            }
+        }
+
+        private static void VisitMethodsEx(SyntaxNodeAnalysisContext ctx)
+        {
+            var node = ctx.Node as Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax;
+
+            if (node != null)
+            {
+                //This analyzer will trace the node only if it is in debug mode.
+                if (SGLogging.IsConfigured())
+                {
+                    SGLogging.Log("== Method : " + node.BlockStatement.GetText() + " (BEGIN) ==", false);
+                    visitNodeRecursivelyEx(node, 0, ctx);
+                    SGLogging.Log("== Method : " + node.BlockStatement.GetText() + " (END) ==", false);
+                }
+            }
+        }
+
+        private static void visitNodeRecursivelyEx(SyntaxNode node, int indent, SyntaxNodeAnalysisContext ctx)
+        {
+
+            string code = node.GetText().Lines[0].Text.ToString().Trim() + (node.GetText().Lines.Count > 1 ? "[...]" : "");
+
+            if (node.ChildNodes().Count() > 0)
+            {
+                code = "";
+            }
+
+            if (node is Microsoft.CodeAnalysis.VisualBasic.Syntax.InvocationExpressionSyntax)
+            {
+                var symbol = ctx.SemanticModel.GetSymbolInfo(node).Symbol;
+                if (symbol != null)
+                {
+                    string typeName = symbol.ContainingType?.Name; //Class name
+                    string name = symbol.Name; //Method
+                    if (typeName != null && name != null)
+                    {
+                        code = typeName + "." + name;
+                    }
+                }
+            }
+
+            SGLogging.Log(new string(' ', indent * 4) + code + " <" + node.GetType().Name + ">", false);
+
+            foreach (var n in node.ChildNodes())
+            {
+                visitNodeRecursivelyEx(n, indent + 1, ctx);
             }
         }
     }

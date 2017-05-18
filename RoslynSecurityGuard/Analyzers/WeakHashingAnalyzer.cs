@@ -9,7 +9,7 @@ using System.Collections.Generic;
 
 namespace RoslynSecurityGuard.Analyzers
 {
-    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    [DiagnosticAnalyzer(LanguageNames.CSharp, LanguageNames.VisualBasic)]
     public class WeakHashingAnalyzer : DiagnosticAnalyzer
     {
         private static DiagnosticDescriptor Md5Rule = LocaleUtil.GetDescriptor("SG0006",new string[] { "MD5" });
@@ -24,6 +24,7 @@ namespace RoslynSecurityGuard.Analyzers
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(VisitSyntaxNode, SyntaxKind.InvocationExpression);
+            context.RegisterSyntaxNodeAction(VisitSyntaxNodeEx, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.InvocationExpression);
         }
 
         private static void VisitSyntaxNode(SyntaxNodeAnalysisContext ctx)
@@ -43,5 +44,24 @@ namespace RoslynSecurityGuard.Analyzers
                 }
             }
         }
-    }
+
+        private static void VisitSyntaxNodeEx(SyntaxNodeAnalysisContext ctx)
+        {
+
+            var node = ctx.Node as Microsoft.CodeAnalysis.VisualBasic.Syntax.InvocationExpressionSyntax;
+            if (node == null) return;
+
+            var symbol = ctx.SemanticModel.GetSymbolInfo(node).Symbol;
+
+            foreach (KeyValuePair<string, DiagnosticDescriptor> entry in HashFunctions)
+            {
+                //XXX.Create()
+                if (AnalyzerUtil.SymbolMatch(symbol, type: entry.Key, name: "Create"))
+                {
+                    var diagnostic = Diagnostic.Create(entry.Value, node.Expression.GetLocation(), "MD5");
+                    ctx.ReportDiagnostic(diagnostic);
+                }
+            }
+        }
+        }
 }

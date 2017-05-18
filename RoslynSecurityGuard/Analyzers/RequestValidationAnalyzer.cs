@@ -8,7 +8,7 @@ using System.Collections.Immutable;
 
 namespace RoslynSecurityGuard.Analyzers
 {
-    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    [DiagnosticAnalyzer(LanguageNames.CSharp, LanguageNames.VisualBasic)]
     public class RequestValidationAnalyzer : DiagnosticAnalyzer
     {
         private static DiagnosticDescriptor Rule = LocaleUtil.GetDescriptor("SG0017");
@@ -18,6 +18,7 @@ namespace RoslynSecurityGuard.Analyzers
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(VisitMethods, SyntaxKind.MethodDeclaration);
+            context.RegisterSyntaxNodeAction(VisitMethodsEx, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.SubBlock, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.FunctionBlock);
         }
 
         private void VisitMethods(SyntaxNodeAnalysisContext ctx)
@@ -60,6 +61,48 @@ namespace RoslynSecurityGuard.Analyzers
             }
 
                 
+        }
+
+        private void VisitMethodsEx(SyntaxNodeAnalysisContext ctx)
+        {
+            var node = ctx.Node as Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax;
+
+            if (node == null)
+            { //Not the expected node type
+                return;
+            }
+
+            //Iterating over the list of annotation for a given method
+            foreach (var attribute in node.BlockStatement.AttributeLists)
+            {
+                if (attribute.Attributes.Count == 0) continue; //Bound check .. Unlikely to happens
+
+                var att = attribute.Attributes[0];
+                //Extract the annotation identifier
+                var identifier = att.Name as Microsoft.CodeAnalysis.VisualBasic.Syntax.IdentifierNameSyntax;
+
+                if (identifier == null) continue;
+
+                if (identifier.Identifier.Text == "ValidateInput")
+                {
+                    var hasArgumentFalse = false;
+                    Microsoft.CodeAnalysis.VisualBasic.Syntax.ExpressionSyntax expression = null;
+                    foreach (var arg in att.ArgumentList.Arguments)
+                    {
+                        var literal = arg.GetExpression() as Microsoft.CodeAnalysis.VisualBasic.Syntax.LiteralExpressionSyntax;
+                        if (literal.Token.ValueText == "false")
+                        {
+                            hasArgumentFalse = true;
+                            expression = arg.GetExpression();
+                        }
+                    }
+
+                    if (hasArgumentFalse && expression != null)
+                    {
+                        ctx.ReportDiagnostic(Diagnostic.Create(Rule, expression.GetLocation()));
+                    }
+                }
+            }
         }
     }
 }

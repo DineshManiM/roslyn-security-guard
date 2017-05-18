@@ -13,7 +13,7 @@ using System.Collections;
 
 namespace RoslynSecurityGuard.Analyzers
 {
-    //[DiagnosticAnalyzer(LanguageNames.CSharp)]
+    [DiagnosticAnalyzer(LanguageNames.CSharp, LanguageNames.VisualBasic)]
     public class XssPreventionAnalyzer : DiagnosticAnalyzer
     {
         public const string DiagnosticId = "SG0029";
@@ -27,6 +27,7 @@ namespace RoslynSecurityGuard.Analyzers
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(VisitMethods, SyntaxKind.ClassDeclaration);
+            context.RegisterSyntaxNodeAction(VisitMethodsEx, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.ClassBlock);
         }
 
         private void VisitMethods(SyntaxNodeAnalysisContext ctx)
@@ -36,16 +37,16 @@ namespace RoslynSecurityGuard.Analyzers
             if (node == null) return;
 
             // Ensures that the analyzed class has a dependency to Controller
-            if (node
-                .DescendantNodesAndSelf()
+            if (node.DescendantNodesAndSelf()
                 .OfType<BaseListSyntax>()
-                .Count(childrenNode => childrenNode.ToString().Contains("Controller"))
+                .Where(childrenNode => childrenNode.ToString().Contains("Controller"))
+                .Count()
                 .Equals(0))
             { return; }
 
             IEnumerable<MethodDeclarationSyntax> methodsWithParameters = node.DescendantNodesAndSelf()
                 .OfType<MethodDeclarationSyntax>()
-                .Where(method => !method.ParameterList.Parameters.Count.Equals(0))
+                .Where(method => !method.ParameterList.Parameters.Count().Equals(0))
                 .Where(method => method.Modifiers.ToString().Equals("public"))
                 .Where(method => method.ReturnType.ToString().Equals("string"));
 
@@ -54,7 +55,7 @@ namespace RoslynSecurityGuard.Analyzers
                 SyntaxList<StatementSyntax> methodStatements = method.Body.Statements;
                 IEnumerable<InvocationExpressionSyntax> methodInvocations = method.DescendantNodes().OfType<InvocationExpressionSyntax>();
 
-                if (!methodStatements.Count.Equals(0))
+                if (!methodStatements.Count().Equals(0))
                 {
                     DataFlowAnalysis flow = ctx.SemanticModel.AnalyzeDataFlow(methodStatements.First(), methodStatements.Last());
 
@@ -72,9 +73,71 @@ namespace RoslynSecurityGuard.Analyzers
                             foreach (InvocationExpressionSyntax methodInvocation in methodInvocations)
                             {
                                 SeparatedSyntaxList<ArgumentSyntax> arguments = methodInvocation.ArgumentList.Arguments;
-                                if (!arguments.Count.Equals(0))
+                                if (!arguments.Count().Equals(0))
                                 {
-                                    if (arguments.First().ToString().Contains(sensibleVariable.Name))
+                                    if (arguments.First().ToString().Contains(sensibleVariable.Name.ToString()))
+                                    {
+                                        sensibleVariableIsEncoded = true;
+                                    }
+                                }
+                            }
+
+                            if (!sensibleVariableIsEncoded)
+                            {
+                                ctx.ReportDiagnostic(Diagnostic.Create(Rule, method.GetLocation()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void VisitMethodsEx(SyntaxNodeAnalysisContext ctx)
+        {
+            Microsoft.CodeAnalysis.VisualBasic.Syntax.ClassBlockSyntax node = ctx.Node as Microsoft.CodeAnalysis.VisualBasic.Syntax.ClassBlockSyntax;
+
+            if (node == null) return;
+
+            // Ensures that the analyzed class has a dependency to Controller
+            if (node.DescendantNodesAndSelf()
+                .OfType<Microsoft.CodeAnalysis.VisualBasic.Syntax.QualifiedNameSyntax>()
+                .Where(childrenNode => childrenNode.ToString().Contains("Controller"))
+                .Count()
+                .Equals(0))
+            { return; }
+
+            IEnumerable<Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax> methodsWithParameters = node.DescendantNodesAndSelf()
+                .OfType<Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax>()
+                .Where(method => !method.BlockStatement.ParameterList.Parameters.Count().Equals(0))
+                .Where(method => method.BlockStatement.Modifiers.ToString().Equals("Public"))
+                .Where(method => method.BlockStatement.GetType().ToString().Equals("String"));
+
+            foreach (Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax method in methodsWithParameters)
+            {
+                SyntaxList<Microsoft.CodeAnalysis.VisualBasic.Syntax.StatementSyntax> methodStatements = method.Statements;
+                IEnumerable<Microsoft.CodeAnalysis.VisualBasic.Syntax.InvocationExpressionSyntax> methodInvocations = method.DescendantNodes().OfType<Microsoft.CodeAnalysis.VisualBasic.Syntax.InvocationExpressionSyntax>();
+
+                if (!methodStatements.Count().Equals(0))
+                {
+                    DataFlowAnalysis flow = ctx.SemanticModel.AnalyzeDataFlow(methodStatements.First(), methodStatements.Last());
+
+                    // Returns from the Data Flow Analysis of sensible data 
+                    // Sensible data is: Data passed as a parameter that is also returned as is by the method
+                    IEnumerable<ISymbol> sensibleVariables = flow.DataFlowsIn.Union(flow.VariablesDeclared.Except(flow.AlwaysAssigned))
+                                                                .Union(flow.WrittenInside)
+                                                                .Intersect(flow.WrittenOutside);
+
+                    if (!sensibleVariables.Count().Equals(0))
+                    {
+                        foreach (ISymbol sensibleVariable in sensibleVariables)
+                        {
+                            bool sensibleVariableIsEncoded = false;
+                            foreach (Microsoft.CodeAnalysis.VisualBasic.Syntax.InvocationExpressionSyntax methodInvocation in methodInvocations)
+                            {
+                                SeparatedSyntaxList<Microsoft.CodeAnalysis.VisualBasic.Syntax.ArgumentSyntax> arguments = methodInvocation.ArgumentList.Arguments;
+                                if (!arguments.Count().Equals(0))
+                                {
+                                    if (arguments.First().ToString().Contains(sensibleVariable.Name.ToString()))
                                     {
                                         sensibleVariableIsEncoded = true;
                                     }

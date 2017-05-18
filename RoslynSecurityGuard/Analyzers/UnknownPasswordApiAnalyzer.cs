@@ -12,8 +12,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RoslynSecurityGuard.Analyzers
 {
-    [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public class UnknownPasswordApiAnalyzer : DiagnosticAnalyzer, CSharpTaintAnalyzerExtension
+    [DiagnosticAnalyzer(LanguageNames.CSharp, LanguageNames.VisualBasic)]
+    public class UnknownPasswordApiAnalyzer : DiagnosticAnalyzer, CSharpTaintAnalyzerExtension, VbTaintAnalyzerExtension
     {
 
         private static DiagnosticDescriptor Rule = LocaleUtil.GetDescriptor("SG0015");
@@ -24,7 +24,7 @@ namespace RoslynSecurityGuard.Analyzers
 
         public override void Initialize(AnalysisContext context)
         {
-            TaintAnalyzer.RegisterExtension(this);
+            TaintAnalyzer.RegisterExtension(this, this);
         }
 
 
@@ -39,6 +39,7 @@ namespace RoslynSecurityGuard.Analyzers
                 state.AnalysisContext.ReportDiagnostic(diagnostic);
             }
         }
+
 
         public void VisitInvocationAndCreation(ExpressionSyntax node, ArgumentListSyntax argList, ExecutionState state)
         {
@@ -66,5 +67,35 @@ namespace RoslynSecurityGuard.Analyzers
             //return symbol.MetadataName.ToLower().Contains("password");
         }
 
+        public void VisitAssignment(Microsoft.CodeAnalysis.VisualBasic.Syntax.AssignmentStatementSyntax node, ExecutionState state, MethodBehavior behavior, ISymbol symbol, VariableState variableRightState)
+        {
+            if (behavior == null && //Unknown API
+                    (symbol != null && IsPasswordField(symbol)) &&
+                    variableRightState.taint == VariableTaint.CONSTANT //Only constant
+                    )
+            {
+                var diagnostic = Diagnostic.Create(Rule, node.GetLocation());
+                state.AnalysisContext.ReportDiagnostic(diagnostic);
+            }
+        }
+
+        public void VisitEndMethodDeclaration(Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax node, ExecutionState state)
+        {
+
+        }
+
+        public void VisitBeginMethodDeclaration(Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax node, ExecutionState state)
+        {
+
+        }
+
+        public void VisitStatement(Microsoft.CodeAnalysis.VisualBasic.Syntax.StatementSyntax node, ExecutionState state)
+        {
+
+        }
+        public void VisitInvocationAndCreation(Microsoft.CodeAnalysis.VisualBasic.Syntax.ExpressionSyntax node, Microsoft.CodeAnalysis.VisualBasic.Syntax.ArgumentListSyntax argList, ExecutionState state)
+        {
+
+        }
     }
 }

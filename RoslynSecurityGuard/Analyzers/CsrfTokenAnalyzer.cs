@@ -12,7 +12,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RoslynSecurityGuard.Analyzers
 {
-    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    [DiagnosticAnalyzer(LanguageNames.CSharp, LanguageNames.VisualBasic)]
     public class CsrfTokenAnalyzer : DiagnosticAnalyzer
     {
         public const string DiagnosticId = "SG0016";
@@ -26,6 +26,7 @@ namespace RoslynSecurityGuard.Analyzers
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(VisitMethods, SyntaxKind.MethodDeclaration);
+            context.RegisterSyntaxNodeAction(VisitMethodsEx, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.SubBlock, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.FunctionBlock);
         }
 
         private void VisitMethods(SyntaxNodeAnalysisContext ctx)
@@ -78,6 +79,66 @@ namespace RoslynSecurityGuard.Analyzers
                     if (attributeList.Attributes != null)
                     {
                         foreach (AttributeSyntax attribute in attributeList.Attributes)
+                        {
+                            attributesList.Add(attribute.Name.GetText().ToString());
+                        }
+                    }
+                }
+            }
+            return attributesList;
+        }
+
+        private void VisitMethodsEx(SyntaxNodeAnalysisContext ctx)
+        {
+            var node = ctx.Node as Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax;
+
+            if (node == null)
+            { //Not the expected node type
+                return;
+            }
+
+            bool hasActionMethod = false;
+            bool hasValidateAntiForgeryToken = false;
+
+            //Iterating over the list of annotation for a given method
+            foreach (var attributesInlined in node.BlockStatement.AttributeLists)
+            {
+                if (attributesInlined.Attributes.Count == 0) continue; //Bound check .. Unlikely to happens
+
+                List<string> attributesList = getAttributesForMethodEx(node);
+
+                //Extract the annotation identifier
+                //var identifier = attributesInlined.Attributes[0].Name as IdentifierNameSyntax;
+                foreach (var attribute in attributesList)
+                {
+                    if (MethodsHttp.Contains(attribute))
+                    {
+                        hasActionMethod = true;
+                    }
+                    else if (attribute.Equals("ValidateAntiForgeryToken"))
+                    {
+                        hasValidateAntiForgeryToken = true;
+                    }
+                }
+            }
+
+            if (hasActionMethod && !hasValidateAntiForgeryToken)
+            {
+                ctx.ReportDiagnostic(Diagnostic.Create(Rule, node.GetLocation()));
+            }
+        }
+        private List<string> getAttributesForMethodEx(Microsoft.CodeAnalysis.VisualBasic.Syntax.MethodBlockSyntax node)
+        {
+            List<string> attributesList = new List<string>();
+
+            if (node.BlockStatement.AttributeLists != null)
+            {
+                foreach (Microsoft.CodeAnalysis.VisualBasic.Syntax.AttributeListSyntax attributeList in node.BlockStatement.AttributeLists)
+                {
+
+                    if (attributeList.Attributes != null)
+                    {
+                        foreach (Microsoft.CodeAnalysis.VisualBasic.Syntax.AttributeSyntax attribute in attributeList.Attributes)
                         {
                             attributesList.Add(attribute.Name.GetText().ToString());
                         }

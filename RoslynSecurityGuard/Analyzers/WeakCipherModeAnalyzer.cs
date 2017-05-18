@@ -13,7 +13,7 @@ using RoslynSecurityGuard.Analyzers.Utils;
 
 namespace RoslynSecurityGuard.Analyzers
 {
-    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    [DiagnosticAnalyzer(LanguageNames.CSharp, LanguageNames.VisualBasic)]
     public class WeakCipherModeAnalyzer : DiagnosticAnalyzer
     {
         private static readonly DiagnosticDescriptor RuleCBC = LocaleUtil.GetDescriptor("SG0011");
@@ -26,11 +26,37 @@ namespace RoslynSecurityGuard.Analyzers
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(VisitSyntaxNode, SyntaxKind.InvocationExpression);
+            context.RegisterSyntaxNodeAction(VisitSyntaxNodeEx, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.InvocationExpression);
         }
 
         private static void VisitSyntaxNode(SyntaxNodeAnalysisContext ctx)
         {
             MemberAccessExpressionSyntax node = ctx.Node as MemberAccessExpressionSyntax;
+            if (node != null)
+            {
+                var symbol = ctx.SemanticModel.GetSymbolInfo(node).Symbol;
+                //DES.Create()
+                if (AnalyzerUtil.SymbolMatch(symbol, "CipherMode", "ECB"))
+                {
+                    var diagnostic = Diagnostic.Create(RuleECB, node.Expression.GetLocation(), "ECB");
+                    ctx.ReportDiagnostic(diagnostic);
+                }
+                else if (AnalyzerUtil.SymbolMatch(symbol, "CipherMode", "CBC"))
+                {
+                    var diagnostic = Diagnostic.Create(RuleCBC, node.Expression.GetLocation(), "CBC");
+                    ctx.ReportDiagnostic(diagnostic);
+                }
+                else if (AnalyzerUtil.SymbolMatch(symbol, "CipherMode", "OFB") || AnalyzerUtil.SymbolMatch(symbol, "CipherMode", "CFB") || AnalyzerUtil.SymbolMatch(symbol, "CipherMode", "CTS"))
+                {
+                    var diagnostic = Diagnostic.Create(RuleGeneric, node.Expression.GetLocation(), "OFB");
+                    ctx.ReportDiagnostic(diagnostic);
+                }
+            }
+        }
+
+        private static void VisitSyntaxNodeEx(SyntaxNodeAnalysisContext ctx)
+        {
+            Microsoft.CodeAnalysis.VisualBasic.Syntax.MemberAccessExpressionSyntax node = ctx.Node as Microsoft.CodeAnalysis.VisualBasic.Syntax.MemberAccessExpressionSyntax;
             if (node != null)
             {
                 var symbol = ctx.SemanticModel.GetSymbolInfo(node).Symbol;

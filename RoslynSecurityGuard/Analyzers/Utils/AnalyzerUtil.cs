@@ -70,5 +70,20 @@ namespace RoslynSecurityGuard.Analyzers.Utils
         {
             return Location.Create(path, TextSpan.FromBounds(1, 2), new LinePositionSpan(new LinePosition(lineStart, 0), new LinePosition(lineStart, 0)));
         }
+
+        public static void ForEachAnnotationEx(SyntaxList<Microsoft.CodeAnalysis.VisualBasic.Syntax.AttributeListSyntax> attributes, Action<string, Microsoft.CodeAnalysis.VisualBasic.Syntax.AttributeSyntax> callback)
+        {
+            foreach (var attribute in attributes)
+            {
+                if (attribute.Attributes == null || attribute.Attributes.Count == 0) continue; //Bound check .. Unlikely to happens
+
+                //Extract the annotation identifier
+                var identifier = attribute.Attributes[0].Name as Microsoft.CodeAnalysis.VisualBasic.Syntax.IdentifierNameSyntax;
+
+                if (identifier == null) continue;
+
+                callback(identifier.Identifier.Text, attribute.Attributes[0]);
+            }
+        }
     }
 }
