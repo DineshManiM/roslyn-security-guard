@@ -5,7 +5,6 @@ using RoslynSecurityGuard.Analyzers;
 using RoslynSecurityGuard.Analyzers.Taint;
 using System.Collections.Generic;
 using System.Data.Linq;
-using System.Threading.Tasks;
 using TestHelper;
 
 namespace RoslynSecurityGuard.Tests
@@ -19,6 +18,11 @@ namespace RoslynSecurityGuard.Tests
             return new[] { new TaintAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new[] { new TaintAnalyzer() };
+        }
+
         protected override IEnumerable<MetadataReference> GetAdditionnalReferences()
         {
             return new [] { MetadataReference.CreateFromFile(typeof(DataContext).Assembly.Location), //Main assembly for Linq
@@ -26,7 +30,7 @@ namespace RoslynSecurityGuard.Tests
         }
 
         [TestMethod]
-        public async Task LinqInjectionFalsePositiveWithGeneric()
+        public void LinqInjectionFalsePositiveWithGeneric()
         {
             var test = @"
 using System.Data.Linq;
@@ -36,7 +40,7 @@ namespace VulnerableApp
 
     public class LyncInjectionFP
     {
-        public static int Run(DataContext ctx,string city) {
+        public static int Main(DataContext ctx,string city) {
             var users = ctx.ExecuteQuery<UserEntity>(@""SELECT CustomerID, CompanyName, ContactName, ContactTitle,
                 Address, City, Region, PostalCode, Country, Phone, Fax
                 FROM dbo.Users"");
@@ -50,11 +54,11 @@ namespace VulnerableApp
     }
 }
 ";
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task LinqInjectionVulnerableWithGeneric()
+        public void LinqInjectionVulnerableWithGeneric()
         {
             var test = @"
 using System.Data.Linq;
@@ -64,7 +68,7 @@ namespace VulnerableApp
 
     public class LyncInjectionTP
     {
-        public static int Run(DataContext ctx,string city) {
+        public static int Main(DataContext ctx,string city) {
             var users = ctx.ExecuteQuery<UserEntity>(@""SELECT CustomerID, CompanyName, ContactName, ContactTitle,
                 Address, City, Region, PostalCode, Country, Phone, Fax
                 FROM dbo.Users
@@ -86,14 +90,13 @@ namespace VulnerableApp
                 Severity = DiagnosticSeverity.Warning,
             };
 
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
         [TestMethod]
-        public async Task LinqInjectionFalsePositiveWithoutGeneric()
+        public void LinqInjectionFalsePositiveWithoutGeneric()
         {
             var test = @"
-using System;
 using System.Data.Linq;
 
 namespace VulnerableApp
@@ -101,8 +104,8 @@ namespace VulnerableApp
 
     public class LyncInjectionTP
     {
-        public static int Run(DataContext ctx,string city) {
-            var users = ctx.ExecuteQuery(typeof(String),@""SELECT CustomerID, CompanyName, ContactName, ContactTitle,
+        public static int Main(DataContext ctx,string city) {
+            var users = ctx.ExecuteQuery(typeof(UserEntity),@""SELECT CustomerID, CompanyName, ContactName, ContactTitle,
                 Address, City, Region, PostalCode, Country, Phone, Fax
                 FROM dbo.Users
                 WHERE  City = 'Montreal'"");
@@ -119,23 +122,23 @@ namespace VulnerableApp
                 Severity = DiagnosticSeverity.Warning,
             };
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
 
         [TestMethod]
-        public async Task LinqInjectionVulnerableWithoutGeneric()
+        public void LinqInjectionVulnerableWithoutGeneric()
         {
             var test = @"
-using System;
 using System.Data.Linq;
 
 namespace VulnerableApp
 {
+
     public class LyncInjectionTP
     {
-        public static int Run(DataContext ctx,string city) {
-            var users = ctx.ExecuteQuery(typeof(String),@""SELECT CustomerID, CompanyName, ContactName, ContactTitle,
+        public static int Main(DataContext ctx,string city) {
+            var users = ctx.ExecuteQuery(typeof(UserEntity),@""SELECT CustomerID, CompanyName, ContactName, ContactTitle,
                 Address, City, Region, PostalCode, Country, Phone, Fax
                 FROM dbo.Users
                 WHERE  City = '"" + city+ ""'"");
@@ -152,7 +155,9 @@ namespace VulnerableApp
                 Severity = DiagnosticSeverity.Warning,
             };
 
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
+        
+        
     }
 }

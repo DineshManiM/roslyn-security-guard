@@ -18,6 +18,10 @@ namespace RoslynSecurityGuard.Test.Tests.Password
             return new[] { new TaintAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new[] { new TaintAnalyzer() };
+        }
 
         public void sandbox()
         {

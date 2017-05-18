@@ -4,7 +4,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RoslynSecurityGuard.Analyzers.Taint;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Threading.Tasks;
 using TestHelper;
 
 namespace RoslynSecurityGuard.Tests
@@ -17,6 +16,11 @@ namespace RoslynSecurityGuard.Tests
         {
             return new List<DiagnosticAnalyzer> { new TaintAnalyzer() };
         }
+   
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new List<DiagnosticAnalyzer> { new TaintAnalyzer() };
+        }
 
 
         protected override IEnumerable<MetadataReference> GetAdditionnalReferences()
@@ -25,7 +29,7 @@ namespace RoslynSecurityGuard.Tests
         }
 
         [TestMethod]
-        public async Task VariableTransferSimple()
+        public void VariableTransferSimple()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -45,11 +49,11 @@ namespace sample
     }
 }
 ";
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task VariableConcatenation()
+        public void VariableConcatenation()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -67,11 +71,11 @@ namespace sample
     }
 }
 ";
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task VariableTransferWithConcatenation()
+        public void VariableTransferWithConcatenation()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -92,11 +96,11 @@ namespace sample
 }
 ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task VariableTransferUnsafe()
+        public void VariableTransferUnsafe()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -121,12 +125,12 @@ namespace sample
                 Id = "SG0026",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
 
         [TestMethod]
-        public async Task VariableConcatenationUnsafe()
+        public void VariableConcatenationUnsafe()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -148,13 +152,13 @@ namespace sample
                 Id = "SG0026",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
 
 
         [TestMethod]
-        public async Task VariableOverride() {
+        public void VariableOverride() {
             var test = @"
 using System.Data.SqlClient;
 
@@ -165,9 +169,7 @@ namespace sample
         public static void Run(string input)
         {
             {
-#pragma warning disable 219
                 string username = ""ignore_me"";
-#pragma warning restore 219
             }
             {
                 string username = input;
@@ -183,13 +185,13 @@ namespace sample
                 Id = "SG0026",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
 
 
         [TestMethod]
-        public async Task VariableReuse()
+        public void VariableReuse()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -215,18 +217,162 @@ namespace sample
                 Id = "SG0026",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
-/*
-        public static void Run(string input)
+        #region VB.Net Test cases
+
+        [TestMethod]
+        public void VariableTransferSimpleEx()
         {
-            string query = "SELECT* FROM[User] WHERE user_id = 1";
-            new SqlCommand(query);
+            var test = @"
+Imports System.Data.SqlClient
 
-            query = input;
-            new SqlCommand(query);
+Namespace sample
+    Class SqlConstant
+        Public Sub Run()
+            Dim username As String = ""Hello Friend..""
+            Dim variable1 = username
+            Dim variable2 = variable1
+
+            Dim cmd As SqlCommand = New SqlCommand(variable2)
+        End Sub
+    End Class
+End Namespace
+";
+            VerifyVbDiagnostic(test);
         }
-*/
+
+        [TestMethod]
+        public void VariableConcatenationEx()
+        {
+            var test = @"
+Imports System.Data.SqlClient
+
+Namespace sample
+    Class SqlConstant
+        Public Sub Run()
+            Dim username As String = ""Hello Friend..""
+            Dim cmd As SqlCommand = New SqlCommand(""SELECT* FROM users WHERE username = '"" + username + ""' LIMIT 1"")
+        End Sub
+    End Class
+End Namespace
+";
+            VerifyVbDiagnostic(test);
+        }
+
+        [TestMethod]
+        public void VariableTransferWithConcatenationEx()
+        {
+            var test = @"
+Imports System.Data.SqlClient
+
+Namespace sample
+    Class SqlConstant
+        Public Sub Run()
+            Dim username As String = ""Hello Friend..""
+            Dim variable1 As String = username
+            Dim variable2 As String = variable1
+            Dim cmd As SqlCommand = New SqlCommand(""SELECT* FROM users WHERE username = '"" + variable2 + ""' LIMIT 1"")
+        End Sub
+    End Class
+End Namespace
+";
+
+            VerifyVbDiagnostic(test);
+        }
+
+        [TestMethod]
+        public void VariableTransferUnsafeEx()
+        {
+            var test = @"
+Imports System.Data.SqlClient
+
+Namespace sample
+    Class SqlConstant
+        Public Sub Run(input As String)
+            Dim username As String = input
+            Dim variable1 As String = username
+            Dim variable2 As String = variable1
+            Dim cmd As SqlCommand = New SqlCommand(variable2)
+        End Sub
+    End Class
+End Namespace
+";
+            var expected = new DiagnosticResult
+            {
+                Id = "SG0026",
+                Severity = DiagnosticSeverity.Warning,
+            };
+            VerifyVbDiagnostic(test, expected);
+        }
+
+
+        [TestMethod]
+        public void VariableConcatenationUnsafeEx()
+        {
+            var test = @"
+Imports System.Data.SqlClient
+
+Namespace sample
+    Class SqlConstant
+        Public Sub Run(input As String)
+            Dim cmd As SqlCommand = New SqlCommand(""SELECT * FROM users WHERE username = '"" + input + ""' LIMIT 1"")
+        End Sub
+    End Class
+End Namespace
+";
+
+            var expected = new DiagnosticResult
+            {
+                Id = "SG0026",
+                Severity = DiagnosticSeverity.Warning,
+            };
+            VerifyVbDiagnostic(test, expected);
+        }
+
+
+        [TestMethod]
+        public void VariableReuseEx()
+        {
+            var test = @"
+Imports System.Data.SqlClient
+
+Namespace sample
+    Class SqlConstant
+        Public Sub Run(input As String)
+            
+            Dim query As String = ""SELECT * FROM [User] WHERE user_id = 1""
+            Dim cmd1 As SqlCommand = New SqlCommand(query)
+            
+            query = input
+            Dim cmd2 As SqlCommand = New SqlCommand(query)
+        End Sub
+    End Class
+End Namespace
+";
+
+            var expected = new DiagnosticResult
+            {
+                Id = "SG0026",
+                Severity = DiagnosticSeverity.Warning,
+            };
+            VerifyVbDiagnostic(test, expected);
+        }
+
+
+
+        #endregion
+
+        /*
+                public static void Run(string input)
+                {
+                    string query = "SELECT* FROM[User] WHERE user_id = 1";
+                    new SqlCommand(query);
+
+                    query = input;
+                    new SqlCommand(query);
+                }
+        */
     }
 }

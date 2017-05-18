@@ -28,13 +28,18 @@ namespace RoslynSecurityGuard.Test.Tests
             return new DiagnosticAnalyzer[] { new TaintAnalyzer(), new InsecureCookieAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new DiagnosticAnalyzer[] { new TaintAnalyzer(), new InsecureCookieAnalyzer() };
+        }
+
         protected override CodeFixProvider GetCSharpCodeFixProvider()
         {
             return new InsecureCookieCodeFixProvider();
         }
 
         [TestMethod]
-        public async Task VerifyBothFlagAdded()
+        public void VerifyBothFlagAdded()
         {
             var before = @"
 using System;
@@ -68,11 +73,11 @@ namespace VulnerableApp
     }
 }
 ";
-            await VerifyCSharpFix(before, after);
+            VerifyCSharpFix(before, after);
         }
 
         [TestMethod]
-        public async Task VerifySecureFlagAdded()
+        public void VerifySecureFlagAdded()
         {
             var before = @"
 using System;
@@ -107,11 +112,11 @@ namespace VulnerableApp
     }
 }
 ";
-            await VerifyCSharpFix(before, after);
+            VerifyCSharpFix(before, after);
         }
 
         [TestMethod]
-        public async Task VerifyHttpOnlyFlagAdded()
+        public void VerifyHttpOnlyFlagAdded()
         {
             var before = @"
 using System;
@@ -146,7 +151,7 @@ namespace VulnerableApp
     }
 }
 ";
-            await VerifyCSharpFix(before, after);
+            VerifyCSharpFix(before, after);
         }
     }
 }

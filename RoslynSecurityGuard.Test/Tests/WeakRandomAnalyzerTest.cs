@@ -4,7 +4,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RoslynSecurityGuard.Analyzers;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using TestHelper;
 
 namespace RoslynSecurityGuard.Tests
@@ -17,8 +16,13 @@ namespace RoslynSecurityGuard.Tests
             return new[] { new WeakRandomAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new[] { new WeakRandomAnalyzer() };
+        }
+
         [TestMethod]
-        public async Task RandomFalsePositive()
+        public void RandomFalsePositive()
         {
             var code = @"using System;
 using System.Security.Cryptography;
@@ -36,18 +40,19 @@ class WeakRandom
     }
 }
 ";
-            await VerifyCSharpDiagnostic(code);
+            VerifyCSharpDiagnostic(code);
         }
 
         [TestMethod]
-        public async Task RandomVulnerable1()
+        public void RandomVulnerable1()
         {
             var code = @"
 using System;
+using System.Security.Cryptography;
 
 class WeakRandom
 {
-    static string generateWeakToken()
+    static String generateWeakToken()
     {
         Random rnd = new Random();
         return rnd.Next().ToString(); //Vulnerable
@@ -59,9 +64,57 @@ class WeakRandom
             {
                 Id = "SG0005",
                 Severity = DiagnosticSeverity.Warning,
-            }.WithLocation(9, -1);
+            }.WithLocation(10, -1);
 
-            await VerifyCSharpDiagnostic(code, expected);
+            VerifyCSharpDiagnostic(code, expected);
         }
+
+
+        #region VB.Net Test cases
+
+        [TestMethod]
+        public void RandomFalsePositiveEx()
+        {
+            var code = @"Imports System
+Imports System.Security.Cryptography
+
+Class WeakRandom
+    Function generateSecureToken() As String
+
+        Dim rnd As RandomNumberGenerator = RandomNumberGenerator.Create()
+
+        Dim buffer() As Byte = New Byte(16) {}
+        rnd.GetBytes(buffer)
+        Return BitConverter.ToString(buffer)
+    End Function
+End Class
+";
+            VerifyVbDiagnostic(code);
+        }
+
+        [TestMethod]
+        public void RandomVulnerable1Ex()
+        {
+            var code = @"Imports System
+Imports System.Security.Cryptography;
+
+Class WeakRandom
+    Function generateWeakToken() As String
+        Dim rnd As Random = New Random()
+        Return rnd.Next().ToString() 'Vulnerable
+    End Function
+End Class
+";
+
+            var expected = new DiagnosticResult
+            {
+                Id = "SG0005",
+                Severity = DiagnosticSeverity.Warning,
+            }.WithLocation("Test0.vb",7, -1);
+
+            VerifyVbDiagnostic(code, expected);
+        }
+
+        #endregion
     }
 }

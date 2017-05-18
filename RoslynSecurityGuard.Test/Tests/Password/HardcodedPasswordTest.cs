@@ -5,7 +5,6 @@ using RoslynSecurityGuard.Analyzers.Taint;
 
 using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Threading.Tasks;
 using TestHelper;
 
 namespace RoslynSecurityGuard.Tests
@@ -19,6 +18,11 @@ namespace RoslynSecurityGuard.Tests
             return new[] { new TaintAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new[] { new TaintAnalyzer() };
+        }
+
         protected override IEnumerable<MetadataReference> GetAdditionnalReferences()
         {
             //Making sure cryptography assembly is loaded
@@ -26,10 +30,11 @@ namespace RoslynSecurityGuard.Tests
         }
 
         [TestMethod]
-        public async Task HardCodePasswordDerivedBytes()
+        public void HardCodePasswordDerivedBytes()
         {
 
             var test = @"
+using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace VulnerableApp
@@ -49,15 +54,16 @@ namespace VulnerableApp
                 Id = "SG0015",
                 Severity = DiagnosticSeverity.Warning
             };
-            await VerifyCSharpDiagnostic(test, expected );
+            VerifyCSharpDiagnostic(test, expected );
         }
 
 
         [TestMethod]
-        public async Task HardCodePasswordDerivedBytesFalsePositive()
+        public void HardCodePasswordDerivedBytesFalsePositive()
         {
 
             var test = @"
+using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace VulnerableApp
@@ -71,8 +77,57 @@ namespace VulnerableApp
     }
 }
 ";
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
+
+        #region VB.Net Test cases
+
+        [TestMethod]
+        public void HardCodePasswordDerivedBytesEx()
+        {
+
+            var test = @"
+Imports System.Collections.Generic
+Imports System.Security.Cryptography
+
+Namespace VulnerableApp
+    Class HardCodedPassword
+        Private Shared Sub TestHardcodedValue()
+            Dim test = New PasswordDeriveBytes(""hardcode"", New Byte() {0, 1, 2, 3})
+        End Sub
+    End Class
+End Namespace
+";
+
+            var expected = new DiagnosticResult
+            {
+                Id = "SG0015",
+                Severity = DiagnosticSeverity.Warning
+            };
+            VerifyVbDiagnostic(test, expected);
+        }
+
+
+        [TestMethod]
+        public void HardCodePasswordDerivedBytesFalsePositiveEx()
+        {
+
+            var test = @"
+Imports System.Collections.Generic
+Imports System.Security.Cryptography
+
+Namespace VulnerableApp
+	Class HardCodedPassword
+		Private Shared Sub TestHardcodedValue(input As String)
+			Dim test = New PasswordDeriveBytes(input, New Byte() {0, 1, 2, 3})
+		End Sub
+	End Class
+End Namespace
+";
+            VerifyVbDiagnostic(test);
+        }
+
+        #endregion
 
         private void sandbox()
         {

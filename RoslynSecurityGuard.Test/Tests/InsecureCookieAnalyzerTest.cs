@@ -1,7 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Web;
 
 using TestHelper;
@@ -21,16 +20,22 @@ namespace RoslynSecurityGuard.Test.Tests
             return new DiagnosticAnalyzer[] { new TaintAnalyzer(), new InsecureCookieAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new DiagnosticAnalyzer[] { new TaintAnalyzer(), new InsecureCookieAnalyzer() };
+        }
+
         protected override IEnumerable<MetadataReference> GetAdditionnalReferences()
         {
             return new[] { MetadataReference.CreateFromFile(typeof(HttpCookie).Assembly.Location) };
         }
 
         [TestMethod]
-        public async Task CookieWithoutFlags()
+        public void CookieWithoutFlags()
         {
 
             var test = @"
+using System;
 using System.Web;
 
 namespace VulnerableApp
@@ -55,13 +60,14 @@ namespace VulnerableApp
                 Id = "SG0009",
                 Severity = DiagnosticSeverity.Warning
             };
-            await VerifyCSharpDiagnostic(test, new DiagnosticResult[] { expected08, expected09 });
+            VerifyCSharpDiagnostic(test, new DiagnosticResult[] { expected08, expected09 });
         }
 
         [TestMethod]
-        public async Task CookieWithFlags()
+        public void CookieWithFlags()
         {
             var test = @"
+using System;
 using System.Web;
 
 namespace VulnerableApp
@@ -77,16 +83,71 @@ namespace VulnerableApp
     }
 }
 ";
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
-/*
-        static void TestCookie()
+        #region VB.Net Test cases
+        [TestMethod]
+        public void CookieWithoutFlagsEx()
         {
-            var cookie = new HttpCookie("test");
-            cookie.Secure = true;
-            cookie.HttpOnly = true;
+
+            var test = @"
+Imports System.Data.SqlClient
+Imports System.Web
+Imports System.Web.Security
+
+Class Class1
+
+    Sub Main()
+        Dim cookie As HttpCookie =  New HttpCookie(""UserLang"")
+    End Sub
+
+End Class
+";
+
+            var expected08 = new DiagnosticResult
+            {
+                Id = "SG0008",
+                Severity = DiagnosticSeverity.Warning
+            };
+            var expected09 = new DiagnosticResult
+            {
+                Id = "SG0009",
+                Severity = DiagnosticSeverity.Warning
+            };
+            VerifyVbDiagnostic(test, new DiagnosticResult[] { expected08, expected09 });
         }
-*/
+
+        [TestMethod]
+        public void CookieWithFlagsEx()
+        {
+            var test = @"
+Imports System.Data.SqlClient
+Imports System.Web
+Imports System.Web.Security
+
+Class Class1
+
+    Sub Main()
+        Dim cookie As HttpCookie =  New HttpCookie(""UserLang"")
+        cookie.HttpOnly = True
+        cookie.Secure = True
+    End Sub
+
+End Class
+";
+            VerifyVbDiagnostic(test);
+        }
+
+
+        #endregion
+        /*
+                static void TestCookie()
+                {
+                    var cookie = new HttpCookie("test");
+                    cookie.Secure = true;
+                    cookie.HttpOnly = true;
+                }
+        */
     }
 }

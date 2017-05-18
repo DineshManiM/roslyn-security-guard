@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RoslynSecurityGuard.Analyzers.Taint;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using TestHelper;
 
 namespace RoslynSecurityGuard.Test.Tests
@@ -21,6 +20,11 @@ namespace RoslynSecurityGuard.Test.Tests
             return new[] { new TaintAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new[] { new TaintAnalyzer() };
+        }
+
 
         protected override IEnumerable<MetadataReference> GetAdditionnalReferences()
         {
@@ -28,7 +32,7 @@ namespace RoslynSecurityGuard.Test.Tests
         }
 
         [TestMethod]
-        public async Task Condition1()
+        public void Condition1()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -43,7 +47,7 @@ namespace sample
             var variable1 = username;
             var variable2 = variable1;
 
-            if(variable2 != """") {
+            if(variable2 != '') {
                 new SqlCommand(variable2);
             }
         }
@@ -55,11 +59,11 @@ namespace sample
                 Id = "SG0026",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test,expected);
+            VerifyCSharpDiagnostic(test,expected);
         }
 
         [TestMethod]
-        public async Task Condition2()
+        public void Condition2()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -74,7 +78,7 @@ namespace sample
             var variable1 = username;
             var variable2 = variable1;
 
-            if(variable2 != """")
+            if(variable2 != '')
                 new SqlCommand(variable2);
 
         }
@@ -87,12 +91,12 @@ namespace sample
                 Id = "SG0026",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
 
         [TestMethod]
-        public async Task Loop1()
+        public void Loop1()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -120,12 +124,12 @@ namespace sample
                 Id = "SG0026",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
 
         [TestMethod]
-        public async Task Loop2()
+        public void Loop2()
         {
             var test = @"
 using System.Data.SqlClient;
@@ -151,7 +155,70 @@ namespace sample
                 Id = "SG0026",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
+
+        #region VB.Net Test cases
+
+        [TestMethod]
+        public void Condition1Ex() //Yet to support decleration under if
+        {
+            var test = @"
+Imports System.Data.SqlClient
+
+Namespace sample
+    Class SqlConstant
+        Public Sub Run(input As String)
+            Dim username As String = input
+            Dim variable1 = username
+            Dim variable2 = variable1
+
+            If variable2 <> "" Then
+                Dim cmd As SqlCommand = New SqlCommand(variable2)
+            End If
+        End Sub
+    End Class
+End Namespace
+";
+            var expected = new DiagnosticResult
+            {
+                Id = "SG0026",
+                Severity = DiagnosticSeverity.Warning,
+            };
+            VerifyVbDiagnostic(test, expected);
+        }
+
+
+        [TestMethod]
+        public void Loop1Ex()
+        {
+            var test = @"
+Imports System.Data.SqlClient
+
+Namespace sample
+    Class SqlConstant
+        Public Shared Sub Run(input As String)
+            Dim username As String = input
+            Dim variable1 = username
+            Dim variable2 = variable1
+
+            For i As Integer = 0 To 9
+                Dim cmd As SqlCommand = New SqlCommand(variable2)
+            Next
+
+        End Sub
+    End Class
+End Namespace
+";
+            var expected = new DiagnosticResult
+            {
+                Id = "SG0026",
+                Severity = DiagnosticSeverity.Warning,
+            };
+            VerifyVbDiagnostic(test, expected);
+        }
+
+
+        #endregion
     }
 }

@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace TestHelper
 {
@@ -45,7 +44,7 @@ namespace TestHelper
         /// <param name="newSource">A class in the form of a string after the CodeFix was applied to it</param>
         /// <param name="codeFixIndex">Index determining which codefix to apply if there are multiple</param>
         /// <param name="allowNewCompilerDiagnostics">A bool controlling whether or not the test will fail if the CodeFix introduces other warnings after being applied</param>
-        protected async Task VerifyCSharpFix(string oldSource, string newSource, int? codeFixIndex = null, bool allowNewCompilerDiagnostics = false)
+        protected void VerifyCSharpFix(string oldSource, string newSource, int? codeFixIndex = null, bool allowNewCompilerDiagnostics = false)
         {
             //This fix avoid new line problems when comparing the generated source code with the one hard coded in the test.
             //
@@ -59,7 +58,7 @@ namespace TestHelper
             var a = GetCSharpDiagnosticAnalyzers().ToList();
             a.Add(new DebugAnalyzer());
 
-            await VerifyFix(LanguageNames.CSharp, a, GetCSharpCodeFixProvider(), normalizeOld, normalizeNew, codeFixIndex, allowNewCompilerDiagnostics);
+            VerifyFix(LanguageNames.CSharp, a, GetCSharpCodeFixProvider(), normalizeOld, normalizeNew, codeFixIndex, allowNewCompilerDiagnostics);
         }
 
         /// <summary>
@@ -75,11 +74,11 @@ namespace TestHelper
         /// <param name="newSource">A class in the form of a string after the CodeFix was applied to it</param>
         /// <param name="codeFixIndex">Index determining which codefix to apply if there are multiple</param>
         /// <param name="allowNewCompilerDiagnostics">A bool controlling whether or not the test will fail if the CodeFix introduces other warnings after being applied</param>
-        private async Task VerifyFix(string language, List<DiagnosticAnalyzer> analyzers, CodeFixProvider codeFixProvider, string oldSource, string newSource, int? codeFixIndex, bool allowNewCompilerDiagnostics)
+        private void VerifyFix(string language, List<DiagnosticAnalyzer> analyzers, CodeFixProvider codeFixProvider, string oldSource, string newSource, int? codeFixIndex, bool allowNewCompilerDiagnostics)
         {
             var document = CreateDocument(oldSource, language, GetAdditionnalReferences());
-            var analyzerDiagnostics = await GetSortedDiagnosticsFromDocuments(analyzers, new[] { document });
-            var compilerDiagnostics = await GetCompilerDiagnostics(document);
+            var analyzerDiagnostics = GetSortedDiagnosticsFromDocuments(analyzers, new[] { document });
+            var compilerDiagnostics = GetCompilerDiagnostics(document);
             foreach (Diagnostic diag in compilerDiagnostics) {
                 Console.WriteLine("/!\\: " + diag.ToString());
             }
@@ -91,7 +90,7 @@ namespace TestHelper
             {
                 var actions = new List<CodeAction>();
                 var context = new CodeFixContext(document, analyzerDiagnostics[0], (a, d) => actions.Add(a), CancellationToken.None);
-                await codeFixProvider.RegisterCodeFixesAsync(context);
+                codeFixProvider.RegisterCodeFixesAsync(context).Wait();
 
                 if (!actions.Any())
                 {
@@ -100,26 +99,26 @@ namespace TestHelper
 
                 if (codeFixIndex != null)
                 {
-                    document = await ApplyFix(document, actions.ElementAt((int)codeFixIndex));
+                    document = ApplyFix(document, actions.ElementAt((int)codeFixIndex));
                     break;
                 }
 
-                document = await ApplyFix(document, actions.ElementAt(0));
-                analyzerDiagnostics = await GetSortedDiagnosticsFromDocuments(analyzers, new[] { document });
+                document = ApplyFix(document, actions.ElementAt(0));
+                analyzerDiagnostics = GetSortedDiagnosticsFromDocuments(analyzers, new[] { document });
 
-                var newCompilerDiagnostics = GetNewDiagnostics(compilerDiagnostics, await GetCompilerDiagnostics(document));
+                var newCompilerDiagnostics = GetNewDiagnostics(compilerDiagnostics, GetCompilerDiagnostics(document));
 
                 //check if applying the code fix introduced any new compiler diagnostics
                 if (!allowNewCompilerDiagnostics && newCompilerDiagnostics.Any())
                 {
                     // Format and get the compiler diagnostics again so that the locations make sense in the output
-                    document = document.WithSyntaxRoot(Formatter.Format(await document.GetSyntaxRootAsync(), Formatter.Annotation, document.Project.Solution.Workspace));
-                    newCompilerDiagnostics = GetNewDiagnostics(compilerDiagnostics, await GetCompilerDiagnostics(document));
+                    document = document.WithSyntaxRoot(Formatter.Format(document.GetSyntaxRootAsync().Result, Formatter.Annotation, document.Project.Solution.Workspace));
+                    newCompilerDiagnostics = GetNewDiagnostics(compilerDiagnostics, GetCompilerDiagnostics(document));
 
                     Assert.IsTrue(false,
                         string.Format("Fix introduced new compiler diagnostics:\r\n{0}\r\n\r\nNew document:\r\n{1}\r\n",
                             string.Join("\r\n", newCompilerDiagnostics.Select(d => d.ToString())),
-                            (await document.GetSyntaxRootAsync()).ToFullString()));
+                            document.GetSyntaxRootAsync().Result.ToFullString()));
                 }
 
                 //check if there are analyzer diagnostics left after the code fix
@@ -130,7 +129,7 @@ namespace TestHelper
             }
 
             //after applying all of the code fixes, compare the resulting string to the inputted one
-            var actual = await GetStringFromDocument(document);
+            var actual = GetStringFromDocument(document);
             Assert.AreEqual(newSource, actual);
         }
     }

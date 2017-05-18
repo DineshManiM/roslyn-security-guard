@@ -3,12 +3,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RoslynSecurityGuard.Analyzers;
 using System.Collections.Generic;
-using System.Reflection;
 using TestHelper;
-using System.Text.Encodings.Web;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 
 namespace RoslynSecurityGuard.Test.Tests
 {
@@ -20,25 +15,19 @@ namespace RoslynSecurityGuard.Test.Tests
             return new[] { new XssPreventionAnalyzer() };
         }
 
-        protected override IEnumerable<MetadataReference> GetAdditionnalReferences()
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
         {
-            return new[]
-            {
-                MetadataReference.CreateFromFile(typeof(HttpGetAttribute).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(HtmlEncoder).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(Controller).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(AllowAnonymousAttribute).Assembly.Location),
-                MetadataReference.CreateFromFile(Assembly.Load("System.Runtime, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
-            };
+            return new[] { new XssPreventionAnalyzer() };
         }
 
         #region Tests that are producing diagnostics
 
         [TestMethod]
-        public async Task unencodedSensibleData()
+        public void unencodedSensibleData()
         {
             var test = @"
             using Microsoft.AspNetCore.Mvc;
+            using System.Text.Encodings.Web;
 
             namespace VulnerableApp
             {
@@ -58,7 +47,7 @@ namespace RoslynSecurityGuard.Test.Tests
                 Severity = DiagnosticSeverity.Warning
             };
 
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
         #endregion
@@ -66,7 +55,7 @@ namespace RoslynSecurityGuard.Test.Tests
         #region Tests that are not producing diagnostics
 
         [TestMethod]
-        public async Task encodedSensibleDataWithTemporaryVariable()
+        public void encodedSensibleDataWithTemporaryVariable()
         {
             var test = @"
             using Microsoft.AspNetCore.Mvc;
@@ -86,11 +75,11 @@ namespace RoslynSecurityGuard.Test.Tests
             }
             ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task encodedSensibleDataOnReturn()
+        public void encodedSensibleDataOnReturn()
         {
             var test = @"
             using Microsoft.AspNetCore.Mvc;
@@ -109,11 +98,11 @@ namespace RoslynSecurityGuard.Test.Tests
             }
             ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task returnEncodedData()
+        public void returnEncodedData()
         {
             var test = @"
             using Microsoft.AspNetCore.Mvc;
@@ -132,11 +121,11 @@ namespace RoslynSecurityGuard.Test.Tests
             }
             ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task encodedDataWithSameVariableUsage()
+        public void encodedDataWithSameVariableUsage()
         {
             var test = @"
             using Microsoft.AspNetCore.Mvc;
@@ -156,15 +145,15 @@ namespace RoslynSecurityGuard.Test.Tests
             }
             ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task methodWithOtherReturningTypeThanString()
+        public void methodWithOtherReturningTypeThanString()
         {
             var test = @"
             using Microsoft.AspNetCore.Mvc;
-            using Microsoft.AspNetCore.Authorization;
+            using System.Text.Encodings.Web;
 
             namespace VulnerableApp
             {
@@ -180,14 +169,15 @@ namespace RoslynSecurityGuard.Test.Tests
             }
             ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task privateMethod()
+        public void privateMethod()
         {
             var test = @"
             using Microsoft.AspNetCore.Mvc;
+            using System.Text.Encodings.Web;
 
             namespace VulnerableApp
             {
@@ -202,8 +192,12 @@ namespace RoslynSecurityGuard.Test.Tests
             }
             ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
+
+        #endregion
+
+        #region VB.Net Test cases
 
         #endregion
     }

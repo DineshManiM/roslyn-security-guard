@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RoslynSecurityGuard.Analyzers;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Web.Mvc;
 using TestHelper;
 
@@ -16,16 +15,23 @@ namespace RoslynSecurityGuard.Test.Tests
         {
             return new [] { new CsrfTokenAnalyzer() };
         }
-        
+
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new[] { new CsrfTokenAnalyzer() };
+        }
+
         protected override IEnumerable<MetadataReference> GetAdditionnalReferences()
         {
             return new[] { MetadataReference.CreateFromFile(typeof(ValidateAntiForgeryTokenAttribute).Assembly.Location) };
         }
         
         [TestMethod]
-        public async Task CsrfDetectMissingToken()
+        public void CsrfDetectMissingToken()
         {
             var test = @"
+                using System;
+                using System.Diagnostics;
                 using System.Web.Mvc;
 
                 namespace VulnerableApp
@@ -47,14 +53,16 @@ namespace RoslynSecurityGuard.Test.Tests
                 Severity = DiagnosticSeverity.Warning
             };
 
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
 
         [TestMethod]
-        public async Task CsrfValidateAntiForgeryTokenPresent()
+        public void CsrfValidateAntiForgeryTokenPresent()
         {
             var test = @"
+                using System;
+                using System.Diagnostics;
                 using System.Web.Mvc;
 
                 namespace VulnerableApp
@@ -71,13 +79,15 @@ namespace RoslynSecurityGuard.Test.Tests
                 }
                 ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
 
         [TestMethod]
-        public async Task CsrfValidateAntiForgeryTokenPresentWithInlinedAttributes()
+        public void CsrfValidateAntiForgeryTokenPresentWithInlinedAttributes()
         {
             var test = @"
+                using System;
+                using System.Diagnostics;
                 using System.Web.Mvc;
 
                 namespace VulnerableApp
@@ -92,7 +102,80 @@ namespace RoslynSecurityGuard.Test.Tests
                 }
                 ";
 
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
+
+        
+        #region VB.Net Test cases
+        [TestMethod]
+        public void CsrfDetectMissingTokenEx()
+        {
+            var test = @"
+Imports System.Diagnostics
+Imports System.Web.Mvc
+
+Namespace VulnerableApp
+	Public Class TestController
+		<HttpPost()> _
+		Public Function ControllerMethod(input As String) As ActionResult
+
+			Return Nothing
+		End Function
+	End Class
+End Namespace
+";
+            var expected = new DiagnosticResult
+            {
+                Id = "SG0016",
+                Severity = DiagnosticSeverity.Warning
+            };
+
+            VerifyVbDiagnostic(test, expected);
+        }
+
+        [TestMethod]
+        public void CsrfValidateAntiForgeryTokenPresentEx()
+        {
+            var test = @"
+Imports System.Diagnostics
+Imports System.Web.Mvc
+
+Namespace VulnerableApp
+	Public Class TestController
+		<HttpPost()> _
+        <ValidateAntiForgeryToken()> _
+		Public Function ControllerMethod(input As String) As ActionResult
+
+			Return Nothing
+		End Function
+	End Class
+End Namespace
+";
+
+            VerifyVbDiagnostic(test);
+        }
+
+        [TestMethod]
+        public void CsrfValidateAntiForgeryTokenPresentWithInlinedAttributesEx()
+        {
+            var test = @"
+Imports System.Diagnostics
+Imports System.Web.Mvc
+
+Namespace VulnerableApp
+	Public Class TestController
+		<HttpPost(),ValidateAntiForgeryToken()> _
+		Public Function ControllerMethod(input As String) As ActionResult
+
+			Return Nothing
+		End Function
+	End Class
+End Namespace
+";
+
+            VerifyVbDiagnostic(test);
+        }
+
+        #endregion
     }
 }

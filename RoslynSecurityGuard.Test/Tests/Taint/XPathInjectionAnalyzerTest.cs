@@ -3,8 +3,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TestHelper;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Xml;
+using RoslynSecurityGuard.Analyzers;
 using RoslynSecurityGuard.Analyzers.Taint;
 
 namespace RoslynSecurityGuard.Tests
@@ -12,7 +12,14 @@ namespace RoslynSecurityGuard.Tests
     [TestClass]
     public class XPathInjectionAnalyzerTest : DiagnosticVerifier
     {
+
+        
         protected override IEnumerable<DiagnosticAnalyzer> GetCSharpDiagnosticAnalyzers()
+        {
+            return new[] { new TaintAnalyzer() };
+        }
+
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
         {
             return new[] { new TaintAnalyzer() };
         }
@@ -24,7 +31,7 @@ namespace RoslynSecurityGuard.Tests
 
         //No diagnostics expected to show up
         [TestMethod]
-        public async Task XPathInjectionFalsePositive()
+        public void XPathInjectionFalsePositive()
         {
             var test = @"
 using System.Xml;
@@ -40,11 +47,11 @@ class XPathInjectionTP
         doc.SelectSingleNode(""/Config/Devices/Device[type='2600']"");
     }
 }";
-            await VerifyCSharpDiagnostic(test);
+            VerifyCSharpDiagnostic(test);
         }
         
         [TestMethod]
-        public async Task XPathInjectionVulnerable1()
+        public void XPathInjectionVulnerable1()
         {
             var test = @"
 using System.Xml;
@@ -65,12 +72,12 @@ class XPathInjectionTP
                 new DiagnosticResult {Id = "SG0003",Severity = DiagnosticSeverity.Warning},
                 new DiagnosticResult { Id = "SG0003", Severity = DiagnosticSeverity.Warning} };
 
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
         //Make sure MemberAccessExpressionSyntax are covered
         [TestMethod]
-        public async Task XPathInjectionVulnerable2()
+        public void XPathInjectionVulnerable2()
         {
             var test = @"
 using System.Xml;
@@ -82,8 +89,8 @@ class XPathInjectionTP
         XmlDocument doc = new XmlDocument();
         doc.Load(""/secret_config.xml"");
 
-        doc.SelectNodes(""/Config/Devices/Device[id='"" + input + ""']"");
-        doc.SelectSingleNode(""/Config/Devices/Device[type='"" + input + ""']"");
+        doc.SelectNodes(""/Config/Devices/Device[id='"" + input + ""']"").Count;
+        doc.SelectSingleNode(""/Config/Devices/Device[type='"" + input + ""']"").Value;
     }
 }";
             //Two occurrences
@@ -91,7 +98,79 @@ class XPathInjectionTP
                 new DiagnosticResult {Id = "SG0003",Severity = DiagnosticSeverity.Warning},
                 new DiagnosticResult { Id = "SG0003", Severity = DiagnosticSeverity.Warning} };
 
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
+
+        #region VB.Net Test cases
+
+        [TestMethod]
+        public void XPathInjectionFalsePositiveEx()
+        {
+            var test = @"
+Imports System.Xml
+
+Class XPathInjectionTP
+
+    Public Sub vulnerableCases(input As String)
+        Dim doc As New XmlDocument()
+        doc.Load("" / secret_config.xml"")
+
+        doc.SelectNodes(""/Config/Devices/Device[id='1337']"")
+        doc.SelectSingleNode(""/Config/Devices/Device[type='2600']"")
+    End Sub
+End Class";
+            VerifyVbDiagnostic(test);
+        }
+
+        [TestMethod]
+        public void XPathInjectionVulnerable1Ex()
+        {
+            var test = @"
+Imports System.Xml
+
+Class XPathInjectionTP
+
+    Public Sub vulnerableCases(input As String)
+        Dim doc As New XmlDocument()
+        doc.Load("" / secret_config.xml"")
+
+        doc.SelectNodes("" / Config / Devices / Device[id='"" & input + ""']"")
+        doc.SelectSingleNode("" / Config / Devices / Device[type='"" & input + ""']"")
+    End Sub
+End Class";
+            //Two occurrences
+            var expected = new[] {
+                new DiagnosticResult {Id = "SG0003",Severity = DiagnosticSeverity.Warning},
+                new DiagnosticResult { Id = "SG0003", Severity = DiagnosticSeverity.Warning} };
+
+            VerifyVbDiagnostic(test, expected);
+        }
+
+        //Make sure MemberAccessExpressionSyntax are covered
+        [TestMethod]
+        public void XPathInjectionVulnerable2Ex()
+        {
+            var test = @"
+Imports System.Xml
+
+Class XPathInjectionTP
+
+    Public Sub vulnerableCases(input As String)
+        Dim doc As New XmlDocument()
+        doc.Load("" / secret_config.xml"")
+
+        Dim cnt As Integer = doc.SelectNodes("" / Config / Devices / Device[id='"" & input + ""']"").Count
+        Dim val As String = doc.SelectSingleNode("" / Config / Devices / Device[type='"" & input + ""']"").Value
+    End Sub
+End Class";
+            //Two occurrences
+            var expected = new[] {
+                new DiagnosticResult {Id = "SG0003",Severity = DiagnosticSeverity.Warning},
+                new DiagnosticResult { Id = "SG0003", Severity = DiagnosticSeverity.Warning} };
+
+            VerifyVbDiagnostic(test, expected);
+        }
+
+        #endregion
     }
 }

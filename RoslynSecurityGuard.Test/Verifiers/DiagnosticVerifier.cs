@@ -1,5 +1,4 @@
 ﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RoslynSecurityGuard.Analyzers;
@@ -9,7 +8,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace TestHelper
 {
@@ -24,6 +22,8 @@ namespace TestHelper
         /// </summary>
         protected abstract IEnumerable<DiagnosticAnalyzer> GetCSharpDiagnosticAnalyzers();
 
+        protected abstract IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers();
+
         protected virtual IEnumerable<MetadataReference> GetAdditionnalReferences() {
             return null;
         }
@@ -36,25 +36,21 @@ namespace TestHelper
         /// Note: input a DiagnosticResult for each Diagnostic expected
         /// </summary>
         /// <param name="source">A class in the form of a string to run the analyzer on</param>
-        /// <param name="expected">DiagnosticResults that should appear after the analyzer is run on the source</param>
-        /// <param name="verifyIfCompiles">Verify if the source compiles</param>
-        protected async Task VerifyCSharpDiagnostic(string source, DiagnosticResult[] expected = null, bool verifyIfCompiles = true)
+        /// <param name="expected"> DiagnosticResults that should appear after the analyzer is run on the source</param>
+        protected void VerifyCSharpDiagnostic(string source, params DiagnosticResult[] expected)
         {
+
             var a = GetCSharpDiagnosticAnalyzers().ToList();
             a.Add(new DebugAnalyzer());
-            await VerifyDiagnostics(new[] { source }, LanguageNames.CSharp, a, expected ?? new DiagnosticResult[0], verifyIfCompiles);
+            VerifyDiagnostics(new[] { source }, LanguageNames.CSharp, a, expected);
         }
 
-        /// <summary>
-        /// Called to test a C# DiagnosticAnalyzer when applied on the single inputted string as a source
-        /// Note: input a DiagnosticResult for each Diagnostic expected
-        /// </summary>
-        /// <param name="source">A class in the form of a string to run the analyzer on</param>
-        /// <param name="expected">DiagnosticResults that should appear after the analyzer is run on the source</param>
-        /// <param name="verifyIfCompiles">Verify if the source compiles</param>
-        protected async Task VerifyCSharpDiagnostic(string source, DiagnosticResult expected, bool verifyIfCompiles = true)
+        protected void VerifyVbDiagnostic(string source, params DiagnosticResult[] expected)
         {
-            await VerifyCSharpDiagnostic(source, new [] { expected }, verifyIfCompiles);
+
+            var a = GetVbDiagnosticAnalyzers().ToList();
+            a.Add(new DebugAnalyzer());
+            VerifyDiagnostics(new[] { source }, LanguageNames.VisualBasic, a, expected);
         }
 
         [TestInitialize]
@@ -69,12 +65,11 @@ namespace TestHelper
         /// </summary>
         /// <param name="sources">An array of strings to create source documents from to run the analyzers on</param>
         /// <param name="language">The language of the classes represented by the source strings</param>
-        /// <param name="analyzers">The analyzers to be run on the source code</param>
+        /// <param name="analyzer">The analyzer to be run on the source code</param>
         /// <param name="expected">DiagnosticResults that should appear after the analyzer is run on the sources</param>
-        /// <param name="includeCompilerDiagnostics">Verify built-in compile diagnostics</param>
-        private async Task VerifyDiagnostics(string[] sources, string language, List<DiagnosticAnalyzer> analyzers, DiagnosticResult[] expected, bool includeCompilerDiagnostics = true)
+        private void VerifyDiagnostics(string[] sources, string language, List<DiagnosticAnalyzer> analyzers, params DiagnosticResult[] expected)
         {
-            var diagnostics = await GetSortedDiagnostics(sources, language, analyzers, GetAdditionnalReferences(), includeCompilerDiagnostics);
+            var diagnostics = GetSortedDiagnostics(sources, language, analyzers, GetAdditionnalReferences());
             VerifyDiagnosticResults(diagnostics, analyzers, expected);
         }
 

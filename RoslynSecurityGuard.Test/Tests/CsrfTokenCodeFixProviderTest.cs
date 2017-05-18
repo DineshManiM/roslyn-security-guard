@@ -6,7 +6,7 @@ using RoslynSecurityGuard.Analyzers;
 using RoslynSecurityGuard.CodeFixes;
 
 using System.Collections.Generic;
-using System.Threading.Tasks;
+
 using System.Web.Mvc;
 using TestHelper;
 
@@ -26,13 +26,18 @@ namespace RoslynSecurityGuard.Test.Tests
             return new[] { new CsrfTokenAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new[] { new CsrfTokenAnalyzer() };
+        }
+
         protected override CodeFixProvider GetCSharpCodeFixProvider()
         {
             return new CsrfTokenCodeFixProvider();
         }
 
         [TestMethod]
-        public async Task CsrfVerifyTokenAdded()
+        public void CsrfVerifyTokenAdded()
         {
             var before = @"
 using System;
@@ -65,7 +70,7 @@ public class TestController
     }
 }
 ";
-            await VerifyCSharpFix(before, after);
+            VerifyCSharpFix(before, after);
         }
     }
 }

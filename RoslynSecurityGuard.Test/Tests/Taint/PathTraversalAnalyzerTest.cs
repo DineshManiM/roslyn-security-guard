@@ -2,10 +2,12 @@
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RoslynSecurityGuard.Analyzers.Taint;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
-using System.Xml;
 using TestHelper;
 
 namespace RoslynSecurityGuard.Test.Tests.Taint
@@ -19,14 +21,19 @@ namespace RoslynSecurityGuard.Test.Tests.Taint
             return new[] { new TaintAnalyzer() };
         }
 
+        protected override IEnumerable<DiagnosticAnalyzer> GetVbDiagnosticAnalyzers()
+        {
+            return new[] { new TaintAnalyzer() };
+        }
+
         protected override IEnumerable<MetadataReference> GetAdditionnalReferences()
         {
-            return new[] { MetadataReference.CreateFromFile(typeof(File).Assembly.Location), MetadataReference.CreateFromFile(typeof(XmlReader).Assembly.Location) };
+            return new[] { MetadataReference.CreateFromFile(typeof(File).Assembly.Location) };
         }
 
 
         [TestMethod]
-        public async Task PathTraversalFound1()
+        public void PathTraversalFound1()
         {
             var test = @"
 using System.IO;
@@ -35,7 +42,7 @@ class PathTraversal
 {
     public static void Run(string input)
     {
-        File.ReadAllText(input);
+        return File.ReadAllText(input);
     }
 }
 ";
@@ -44,11 +51,11 @@ class PathTraversal
                 Id = "SG0018",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
         [TestMethod]
-        public async Task PathTraversalFound2()
+        public void PathTraversalFound2()
         {
             var test = @"
 using System.IO;
@@ -57,7 +64,7 @@ class PathTraversal
 {
     public static void Run(string input)
     {
-        File.OpenRead(input);
+        return File.OpenRead(input);
     }
 }
 ";
@@ -66,12 +73,12 @@ class PathTraversal
                 Id = "SG0018",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
 
         [TestMethod]
-        public async Task PathTraversalFound3()
+        public void PathTraversalFound3()
         {
             var test = @"
 using System.IO;
@@ -80,7 +87,7 @@ class PathTraversal
 {
     public static void Run(string input)
     {
-        File.WriteAllText(input,""ouput.."");
+        return File.WriteAllText(input,""ouput.."");
     }
 }
 ";
@@ -89,11 +96,11 @@ class PathTraversal
                 Id = "SG0018",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyCSharpDiagnostic(test, expected);
         }
 
         [TestMethod]
-        public async Task PathTraversalFound4()
+        public void FalsePositive1()
         {
             var test = @"
 using System.IO;
@@ -102,78 +109,87 @@ class PathTraversal
 {
     public static void Run(string input)
     {
-        new StreamReader(input);
+        return File.OpenRead(""C:/static/fsociety.dat"");
     }
 }
+";
+            VerifyCSharpDiagnostic(test);
+        }
+
+        #region VB.Net Test cases
+
+        [TestMethod]
+        public void PathTraversalFound1Ex()
+        {
+            var test = @"
+Imports System.IO
+Class PathTraversal
+    Public Function Run(input As String)
+        Return File.ReadAllText(input)
+    End Function
+End Class
 ";
             var expected = new DiagnosticResult
             {
                 Id = "SG0018",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyVbDiagnostic(test, expected);
         }
 
         [TestMethod]
-        public async Task PathTraversalFound5()
+        public void PathTraversalFound2Ex()
         {
             var test = @"
-using System.IO;
-
-class PathTraversal
-{
-    public static void Run(string input)
-    {
-        new StreamReader(input, System.Text.Encoding.ASCII, false, 0);
-    }
-}
+Imports System.IO
+Class PathTraversal
+    Public Function Run(input As String)
+        Return File.OpenRead(input)
+    End Function
+End Class
 ";
             var expected = new DiagnosticResult
             {
                 Id = "SG0018",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyVbDiagnostic(test, expected);
         }
 
+
         [TestMethod]
-        public async Task PathTraversalFound6()
+        public void PathTraversalFound3Ex()
         {
             var test = @"
-using System.Xml;
-
-class PathTraversal
-{
-    public static void Run(string input)
-    {
-        XmlReaderSettings settings = new XmlReaderSettings();
-        XmlReader reader = XmlReader.Create(input, settings, (XmlParserContext)null);
-    }
-}
+Imports System.IO
+Class PathTraversal
+    Public Function Run(input As String)
+        File.WriteAllText(input, ""ouput.."")
+    End Function
+End Class
 ";
             var expected = new DiagnosticResult
             {
                 Id = "SG0018",
                 Severity = DiagnosticSeverity.Warning,
             };
-            await VerifyCSharpDiagnostic(test, expected);
+            VerifyVbDiagnostic(test, expected);
         }
 
         [TestMethod]
-        public async Task FalsePositive1()
+        public void FalsePositive1Ex()
         {
             var test = @"
-using System.IO;
-
-class PathTraversal
-{
-    public static void Run(string input)
-    {
-        File.OpenRead(""C:/static/fsociety.dat"");
-    }
-}
+Imports System.IO
+Class PathTraversal
+    Public Function Run(input As String)
+        Return File.OpenRead(""C:/static/fsociety.dat"")
+    End Function
+End Class
 ";
-            await VerifyCSharpDiagnostic(test);
+            VerifyVbDiagnostic(test);
         }
+
+        #endregion
     }
 }
