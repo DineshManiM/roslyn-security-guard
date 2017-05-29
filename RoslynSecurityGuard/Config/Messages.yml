@@ -165,19 +165,3 @@ SG0029:
   class: XssPreventionAnalyzer
   title: Potential XSS vulnerability
   description: The endpoint returns a variable from the client input that has not been encoded.
-
-#Password Validator
-SG0032:
-    class: WeakPasswordValidatorAnalyzer
-    title: The RequiredLength property of PasswordValidator is too small.
-    description: The minimal length of a password is recommended to be set at least to 8.
-
-SG0033:
-    class: WeakPasswordValidatorPropertyAnalyzer
-    title: Not enough properties set in PasswordValidator declaration.
-    description: "PasswordValidator should have at least two requirements for better security (RequiredLength, RequireDigit, RequireLowercase, RequireUppercase and/or RequireNonLetterOrDigit)."
-
-SG0034:
-    class: WeakPasswordValidatorPropertyAnalyzer
-    title: The RequiredLength property must be set.
-    description: The RequiredLength property must be set with a minimum value of 8.

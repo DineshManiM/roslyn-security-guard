@@ -12,8 +12,6 @@ namespace RoslynSecurityGuard.Analyzers.Taint
 
         void VisitAssignment(AssignmentExpressionSyntax node, ExecutionState state, MethodBehavior behavior, ISymbol symbol, VariableState variableRightState);
 
-
-
         void VisitBeginMethodDeclaration(MethodDeclarationSyntax node, ExecutionState state);
 
         void VisitEndMethodDeclaration(MethodDeclarationSyntax node, ExecutionState state);

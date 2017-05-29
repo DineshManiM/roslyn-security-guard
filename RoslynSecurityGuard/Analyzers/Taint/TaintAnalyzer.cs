@@ -20,7 +20,10 @@ namespace RoslynSecurityGuard.Analyzers.Taint
 
         private static List<CSharpTaintAnalyzerExtension> extensions = new List<CSharpTaintAnalyzerExtension>();
 
+        private static List<VbTaintAnalyzerExtension> vbextensions = new List<VbTaintAnalyzerExtension>();
+
         private CSharpCodeEvaluation csharpCodeEval = new CSharpCodeEvaluation();
+
         private VbCodeEvaluation vbCodeEval = new VbCodeEvaluation();
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
@@ -59,32 +62,38 @@ namespace RoslynSecurityGuard.Analyzers.Taint
             }
 
             csharpCodeEval.behaviorRepo = behaviorRepo;
+            vbCodeEval.behaviorRepo = behaviorRepo;
         }
         
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(VisitMethods, SyntaxKind.MethodDeclaration);
+            context.RegisterSyntaxNodeAction(VisitMethods, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.SubBlock, Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.FunctionBlock);
         }
         
-        public static void RegisterExtension(CSharpTaintAnalyzerExtension extension)
+        public static void RegisterExtension(CSharpTaintAnalyzerExtension extension, VbTaintAnalyzerExtension vbextension)
         {
-			// Must be executed in a synchronous way for testing purposes
-			lock (extensions)
-			{
-				// Makes sure an extension of the same time isn't already registered before adding it to the list
-				if (!extensions.Any(x => x.GetType().FullName.Equals((extension).GetType().FullName)))
-				{
-					extensions.Add(extension);
-					CSharpCodeEvaluation.extensions = extensions;
-				}
-			}	
+            // Must be executed in a synchronous way for testing purposes
+            lock (extensions)
+            {
+                // Makes sure an extension of the same time isn't already registered before adding it to the list
+                if (!extensions.Any(x => x.GetType().FullName.Equals((extension).GetType().FullName)))
+                {
+                    extensions.Add(extension);
+                    CSharpCodeEvaluation.extensions = extensions;
+
+                    vbextensions.Add(vbextension);
+                    VbCodeEvaluation.extensions = vbextensions;
+                }
+            }  
         }
 
 
         private void VisitMethods(SyntaxNodeAnalysisContext obj)
         {
             csharpCodeEval.VisitMethods(obj);
-            //vbCodeEval.VisitMethods(obj);
+            vbCodeEval.VisitMethods(obj);
         }
+
     }
 }

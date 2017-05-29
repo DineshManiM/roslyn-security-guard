@@ -80,3 +80,11 @@ StringFormat_8:
   argTypes: (string, object, object, object)
   taintFromArguments: 0,1,2,3
 
+StringFormat_9:
+  namespace: System
+  className: String
+  member: method
+  name: Format
+  argTypes: (format As String, arg0 As Object) As String
+  taintFromArguments: 0,1
+  

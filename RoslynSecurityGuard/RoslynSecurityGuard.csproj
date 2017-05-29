@@ -43,6 +43,7 @@
     <Compile Include="Analyzers\Taint\CodeEvaluation\BaseCodeEvaluation.cs" />
     <Compile Include="Analyzers\Taint\CodeEvaluation\CSharpCodeEvaluation.cs" />
     <Compile Include="Analyzers\Taint\CodeEvaluation\CSharpTaintAnalyzerExtension.cs" />
+    <Compile Include="Analyzers\Taint\CodeEvaluation\VbTaintAnalyzerExtension.cs" />
     <Compile Include="Analyzers\Taint\VariableTag.cs" />
     <Compile Include="Analyzers\UnknownPasswordApiAnalyzer.cs" />
     <Compile Include="Analyzers\Utils\AnalyzerUtil.cs" />
@@ -62,13 +63,11 @@
     <Compile Include="Analyzers\WeakCipherAnalyzer.cs" />
     <Compile Include="Analyzers\WeakCipherModeAnalyzer.cs" />
     <Compile Include="Analyzers\WeakHashingAnalyzer.cs" />
-    <Compile Include="Analyzers\WeakPasswordValidatorPropertyAnalyzer.cs" />
     <Compile Include="Analyzers\WeakRandomAnalyzer.cs" />
     <Compile Include="Analyzers\WebConfigAnalyzer.cs" />
     <Compile Include="Analyzers\XxeAnalyzer.cs" />
     <Compile Include="CodeFixes\CsrfTokenCodeFixProvider.cs" />
     <Compile Include="CodeFixes\InsecureCookieCodeFixProvider.cs" />
-    <Compile Include="Constants.cs" />
     <Compile Include="Empty.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
